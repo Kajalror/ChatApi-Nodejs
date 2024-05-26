@@ -1,6 +1,8 @@
 
 // https://github.com/Kajalror/ChatApi-Nodejs.git
 const express = require("express");
+const multer = require("multer");
+const path = require("path");
 const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
@@ -23,6 +25,8 @@ const cors = require("cors");
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+//multer
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use(cors());
 const { default: mongoose } = require("mongoose");
@@ -43,6 +47,20 @@ mongoose
     console.log(error.message);
   });
 
+//multer
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
+
+const upload = multer({ storage });
+
+
 //socket.io
 let users = [];
 io.on("connection", (socket) => {
@@ -58,7 +76,7 @@ io.on("connection", (socket) => {
   });
   socket.on(
     "sendMessage",
-    async ({ userId, retailerId, message, _conversationId }) => {
+    async ({ userId, retailerId, message, _conversationId, isFile  }) => {
       const retailer = users.find((user) => user.id === retailerId);
       // console.log("receiver socket", retailer); // receiver
       const sender = users.find((user) => user.id === userId);
@@ -74,6 +92,7 @@ io.on("connection", (socket) => {
             message,
             _conversationId,
             retailerId,
+            isFile,
             user: { id: user._id, fullName: user.fullName, email: user.email },
           });
       }
@@ -342,6 +361,15 @@ app.get("/api/message/:_conversationId", async (req, res) => {
   } catch (error) {
     console.log(error, "Error");
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.post("/api/upload", upload.single("file"), (req, res) => {
+  if (req.file) {
+    console.log("Upload--", req.file);
+    res.status(200).json({ url: `/uploads/${req.file.filename}` });
+  } else {
+    res.status(400).json({ error: "File upload failed" });
   }
 });
 
