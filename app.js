@@ -1,10 +1,11 @@
 
-// https://github.com/Kajalror/ChatApi-Nodejs.git
+// https://member.osat.in:3000
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
 const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+
 require("dotenv").config();
 
 const io = require("socket.io")(8080, {
@@ -13,11 +14,12 @@ const io = require("socket.io")(8080, {
   },
 });
 
+
 //import files
 const Users = require("./models/Users.js");
 const Conversations = require("./models/Conversation.js");
 const Messages = require("./models/Messages.js");
-// const Conversation = require("./models/Conversation.js");
+const File = require('./models/File');
 
 const app = express();
 const cors = require("cors");
@@ -28,11 +30,13 @@ app.use(express.urlencoded({ extended: false }));
 //multer
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
+
 app.use(cors());
-const { default: mongoose } = require("mongoose");
+const mongoose = require("mongoose");
+
 
 app.use((err, req, res, next) => {
-  console.error(err.stack); // Log errors
+  console.error(err.stack); 
   res.status(500).send("Internal Server Error 0");
 });
 
@@ -57,32 +61,33 @@ const storage = multer.diskStorage({
     cb(null, `${Date.now()}-${file.originalname}`);
   },
 });
-
 const upload = multer({ storage });
-
 
 //socket.io
 let users = [];
 io.on("connection", (socket) => {
   console.log("User connected", socket.id);
-
+ 
   socket.on("addUser", (userId) => {
-    const isUserExist = users.find((user) => user.id === userId);
-    if (isUserExist) {
-      const user = { id: userId, socketId: socket.id };
-      user.push(user);
-      io.emit("getUsers ", userId);
+    if (!users.some((user) => user.id === userId)) {
+      users.push({ id: userId, socketId: socket.id });
     }
+    
+    io.emit("getUsers", users);
   });
+
   socket.on(
     "sendMessage",
     async ({ userId, retailerId, message, _conversationId, isFile  }) => {
-      const retailer = users.find((user) => user.id === retailerId);
-      // console.log("receiver socket", retailer); // receiver
+
+        console.log("user>....", users);
+
+      const retailer = users.find((user) => user?.id === retailerId);
+          console.log("receiver socket", retailer); // receiver
       const sender = users.find((user) => user.id === userId);
-      // console.log("sender socket", sender); // sender
+          console.log("sender socket", sender); // sender
       const user = await Users.findById(userId);
-      // console.log("user find by userId ", user);
+          console.log("user find by userId ", user);
 
       if (retailer && sender) {
         io.to(retailer.socketId)
@@ -96,11 +101,11 @@ io.on("connection", (socket) => {
             user: { id: user._id, fullName: user.fullName, email: user.email },
           });
       }
-    }
-  );
+
+    } );
 
   socket.on("disconnect", () => {
-    users = users.filter((user) => user.socketId === socket.id);
+    users = users.filter((user) => user.socketId !== socket.id);
     io.emit("getUsers", users);
     console.log("User disconnected", socket.id);
   });
@@ -364,14 +369,39 @@ app.get("/api/message/:_conversationId", async (req, res) => {
   }
 });
 
-app.post("/api/upload", upload.single("file"), (req, res) => {
+/* 
+    app.post("/api/upload", upload.single("file"), (req, res) => {
+      if (req.file) {
+        console.log("Upload--", req.file);
+        res.status(200).json({ url: `/uploads/${req.file.filename}` });
+      } else {
+        res.status(400).json({ error: "File upload failed" });
+      }
+    });
+*/
+
+
+
+app.post('/api/upload', upload.single('file'), async (req, res) => {
   if (req.file) {
-    console.log("Upload--", req.file);
-    res.status(200).json({ url: `/uploads/${req.file.filename}` });
+    try {
+      // Save file metadata to MongoDB
+      const fileRecord = new File({
+        filename: req?.file?.filename,
+        path: `/uploads/${req?.file?.filename}`
+      });
+      await fileRecord.save();
+      console.log('Upload--', req?.file);
+      res.status(200).json({ url: fileRecord?.path });
+    } catch (error) {
+      console.error('Database error:', error);
+      res.status(500).json({ error: 'Failed to save file metadata to database' });
+    }
   } else {
-    res.status(400).json({ error: "File upload failed" });
+    res.status(400).json({ error: 'File upload failed' });
   }
 });
+
 
 app.get("/api/users", async (req, res) => {
   try {
