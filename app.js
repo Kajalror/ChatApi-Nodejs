@@ -205,53 +205,6 @@ app.post("/api/login", async (req, res, next) => {
   }
 });
 
-// how to fetch and create a conversation id
-
-
-
-// app.post("/api/conversation", async (req, res) => {
-//   try {
-//     const { retailerId, userId } = req.body;
-//     let RetailerAndUser = await Conversations.findOne({
-//       retailerId: retailerId,
-//       userId: userId
-//     });
-//     if(RetailerAndUser?._conversationId == null){
-//       RetailerAndUser =  await Conversations.findOne({
-//         retailerId: userId,
-//         userId:  retailerId
-//       });
-//     }
-
-//     if(RetailerAndUser?._conversationId != null){
-//         // console.log("Conversation ID exists:----- ",  RetailerAndUser?._conversationId)
-//       return  res.status(200).json({
-//         message: "Conversation ID exists",
-//         conversationId: RetailerAndUser?._conversationId
-//       });
-//     }
-//     else{
-//       let _conversationId = retailerId + "-" + userId;
-//         const newConversation = new Conversations({
-//           retailerId,
-//           userId,
-//           _conversationId: _conversationId,
-//         });
-//       await  newConversation.save();
-//        //  await console.log("Conversation created:----- ",  newConversation?._conversationId)
-//       return res.status(200).json({
-//         message: "Conversation ID Created",
-//         conversationId: newConversation?._conversationId
-//       });
-//     }
-//   } catch (error) {
-//     console.log(error, "Error");
-//     res.status(500).send("Internal server error");
-//   }
-// });
-
-
-
 
 
 app.post("/api/conversation", async (req, res) => {
